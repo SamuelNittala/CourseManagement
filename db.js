@@ -1,7 +1,8 @@
+require('dotenv').config()
 const Pool = require('pg').Pool
 const pool = new Pool({
 	user: "postgres",
-	password: "12345",
+	password: process.env.DB_PASSWORD,
 	database: "homejam",
 	host: "localhost",
 	port: "5432",
