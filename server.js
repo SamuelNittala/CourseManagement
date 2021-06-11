@@ -26,11 +26,22 @@ app.post('/register', async (req,res) => {
 })
 
 app.post('/login',async (req,res)=>{
-	try{
-		const {name,password} = req.body
-		const find_query = "SELECT * from account WHERE name = $1"
-		const db_data = await pool.query(find_query,[name])
-		res.json(db_data)
+	const {name,password} = req.body
+	const find_query = "SELECT * from account WHERE name = $1"
+	const db_data = await pool.query(find_query,[name])
+	const db_name = db_data.rows[0].name,db_pwd = db_data.rows[0].password
+	if (db_name == null) {
+		return res.status(400).send('Cannot find user')
+	}
+	try {
+		if (await bcrpyt.compare(password,db_pwd)) {
+			const user = {name: name}
+			const accessToken = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET)
+			res.json({accessToken: accessToken})
+		}
+		else {
+			res.send('Invalid Password!')
+		}
 	}
 	catch {
 		res.status(500).send()
@@ -52,6 +63,7 @@ app.post('/course', async (req,res) => {
 app.get('/class',(req,res) => {
 
 })
+
 app.listen(port, () => {
 	console.log(`Listening on port ${port}`)
 })
