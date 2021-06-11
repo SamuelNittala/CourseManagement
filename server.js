@@ -2,7 +2,7 @@ require('dotenv').config()
 
 const express = require('express')
 const bcrpyt = require('bcrypt')
-const pool = require('./db')
+const pool = require('./db/db')
 const jwt = require('jsonwebtoken')
 
 const app = express()
