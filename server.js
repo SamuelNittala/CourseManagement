@@ -12,11 +12,11 @@ app.use(express.json())
 
 app.post('/register', async (req,res) => {
 	try{
-		const {name,password,isTeacher} = req.body
+		const {name,password,teacher} = req.body
 		const hashed_password = await bcrpyt.hash(password,10)
 
-		const insert_query = "INSERT INTO account (name,password,isTeacher) VALUES ($1,$2,$3) RETURNING *"
-		const new_user = await pool.query(insert_query,[name,hashed_password,isTeacher])
+		const insert_query = "INSERT INTO account (name,password,teacher) VALUES ($1,$2,$3) RETURNING *"
+		const new_user = await pool.query(insert_query,[name,hashed_password,teacher])
 
 		res.json(new_user)
 	}
@@ -59,8 +59,10 @@ function authenticateToken(req,res,next) {
 		next()
 	})
 }
+
 app.post('/course', authenticateToken ,async (req,res) => {
 	const find_query = "SELECT * from account where name = $1"
+	if (req.body.instructor_name !== req.user.name) res.send('Invalid Operation!') 	
 	const current_user = await pool.query(find_query,[req.user.name])
 	const current_user_id = current_user.rows[0].account_id
 	try {
@@ -75,9 +77,22 @@ app.post('/course', authenticateToken ,async (req,res) => {
 	}
 })
 
-app.get('/course',authenticateToken,(req,res) => {
-	user = req.user;
-	console.log(user)	
+app.get('/course',authenticateToken,async(req,res) => {
+	const user = req.user
+	const find_query = 	"SELECT * from account WHERE name = $1"
+	const current_user = await pool.query(find_query,[user.name])
+	const user_data = current_user.rows[0]
+	try {
+		if (user_data.teacher) {
+			const find_course_query = 
+			"SELECT course_name from account INNER JOIN course ON course.account_id=account.account_id where account.account_id = $1"
+			const courses_taught = await pool.query(find_course_query,[user_data.account_id])
+			res.json(courses_taught)
+		}
+	}
+	catch {
+		res.status(500).send()
+	}
 })
 
 app.listen(port, () => {
