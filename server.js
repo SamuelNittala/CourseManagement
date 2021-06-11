@@ -61,10 +61,15 @@ function authenticateToken(req,res,next) {
 }
 
 app.post('/course', authenticateToken ,async (req,res) => {
-	const find_query = "SELECT * from account where name = $1"
 	if (req.body.instructor_name !== req.user.name) res.send('Invalid Operation!') 	
+
+	const find_query = "SELECT * from account where name = $1"
 	const current_user = await pool.query(find_query,[req.user.name])
+
+	if(!current_user.rows[0].teacher) res.send('Cannot add course as a student, try registering to a course!')
+
 	const current_user_id = current_user.rows[0].account_id
+
 	try {
 		const {course_name,instructor_name} = req.body
 		const insert_query = 
@@ -77,6 +82,23 @@ app.post('/course', authenticateToken ,async (req,res) => {
 	}
 })
 
+app.post('/registercourse',authenticateToken,async(req,res) => {
+	const {course_name,user_name} = req.body;
+
+	const find_user_query = "SELECT account_id from account where name = $1"	
+	const current_user = await pool.query(find_user_query,[user_name])
+	const user_id = current_user.rows[0].account_id
+	
+	const find_course_query = "SELECT course_id from account where name = $1" 
+	const course_to_register = await pool.query(find_course_query,[course_name])
+	const course_id = course_to_register.rows[0].course_id
+	
+	const insert_query = "INSERT INTO enrolled (course_id,account_id) VALUES ($1,$2) RETURNING *"
+	const registered_query = await pool.query(insert_query,[course_id,user_id])
+	
+	res.json(registered_query)
+})
+
 app.get('/course',authenticateToken,async(req,res) => {
 	const user = req.user
 	const find_query = 	"SELECT * from account WHERE name = $1"
@@ -85,12 +107,39 @@ app.get('/course',authenticateToken,async(req,res) => {
 	try {
 		if (user_data.teacher) {
 			const find_course_query = 
-			"SELECT course_name from account INNER JOIN course ON course.account_id=account.account_id where account.account_id = $1"
+		"SELECT course_name from account INNER JOIN course ON course.account_id=account.account_id where account.account_id = $1"
 			const courses_taught = await pool.query(find_course_query,[user_data.account_id])
 			res.json(courses_taught)
 		}
 	}
 	catch {
+		res.status(500).send()
+	}
+})
+
+app.delete('/course',authenticateToken,async(req,res) => {
+	const user = req.user
+	const {course_name} = req.body		
+
+	const find_instructor_query = "SELECT account_id,course_id from course where course_name = $1"
+	const instructor_data = await pool.query(find_instructor_query,[course_name])
+
+	const instructor_id = instructor_data.rows[0].account_id
+	const course_id = instructor_data.rows[0].course_id
+
+	const current_instructor_data = "SELECT * from account where account_id = $1"
+	const current_instructor= await pool.query(current_instructor_data,[instructor_id])
+
+	const instructor_data_ref = current_instructor.rows[0]
+
+	if (instructor_data_ref.name != user.name || !instructor_data_ref.teacher) res.send('Cannot perform that action!')
+	try {
+		console.log('is teacher!')
+		const delete_query= "DELETE from course where course_id= $1"	
+		const delete_course = await pool.query(delete_query,[course_id])
+		res.json(delete_course)
+	}
+	catch{
 		res.status(500).send()
 	}
 })
