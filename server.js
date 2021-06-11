@@ -47,21 +47,37 @@ app.post('/login',async (req,res)=>{
 		res.status(500).send()
 	}
 })
+function authenticateToken(req,res,next) {
+	const authHeader = req.headers['authorization']
+	const token = authHeader && authHeader.split(' ')[1]
 
-app.post('/course', async (req,res) => {
+	if (token == null) return res.sendStatus(401)
+
+	jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,user) => {
+		if (err) return res.sendStatus(403)
+		req.user = user
+		next()
+	})
+}
+app.post('/course', authenticateToken ,async (req,res) => {
+	const find_query = "SELECT * from account where name = $1"
+	const current_user = await pool.query(find_query,[req.user.name])
+	const current_user_id = current_user.rows[0].account_id
 	try {
 		const {course_name,instructor_name} = req.body
 		const insert_query = 
 		"INSERT INTO course (course_name,instructor_name,account_id) VALUES ($1,$2,$3) RETURNING *"
-		const new_course = await pool.query(insert_query,[course_name,instructor_name])
+		const new_course = await pool.query(insert_query,[course_name,instructor_name,current_user_id])
+		res.json(new_course)
 	}
 	catch {
 		res.status(500).send()
 	}
 })
 
-app.get('/class',(req,res) => {
-
+app.get('/course',authenticateToken,(req,res) => {
+	user = req.user;
+	console.log(user)	
 })
 
 app.listen(port, () => {
