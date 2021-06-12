@@ -67,9 +67,7 @@ app.post('/course', authenticateToken ,async (req,res) => {
 	const current_user = await pool.query(find_query,[req.user.name])
 
 	if(!current_user.rows[0].teacher) res.send('Cannot add course as a student, try registering to a course!')
-
 	const current_user_id = current_user.rows[0].account_id
-
 	try {
 		const {course_name,instructor_name} = req.body
 		const insert_query = 
@@ -82,16 +80,22 @@ app.post('/course', authenticateToken ,async (req,res) => {
 	}
 })
 
-app.post('/registercourse',authenticateToken,async(req,res) => {
-	const {course_name,user_name} = req.body;
+app.post('/register-course',authenticateToken,async(req,res) => {
+	const user = req.user
+	const {course_name,name} = req.body;
+	if (name != user.name) res.send("Unauthorized!")	
 
 	const find_user_query = "SELECT account_id from account where name = $1"	
-	const current_user = await pool.query(find_user_query,[user_name])
+	const current_user = await pool.query(find_user_query,[name])
 	const user_id = current_user.rows[0].account_id
 	
-	const find_course_query = "SELECT course_id from account where name = $1" 
+	const find_course_query = "SELECT course_id from course where course_name = $1" 
 	const course_to_register = await pool.query(find_course_query,[course_name])
-	const course_id = course_to_register.rows[0].course_id
+
+	const course_data = course_to_register.rows
+	if (course_data.length == 0) res.send('Course not found!')
+	
+	const course_id = course_data[0].course_id
 	
 	const insert_query = "INSERT INTO enrolled (course_id,account_id) VALUES ($1,$2) RETURNING *"
 	const registered_query = await pool.query(insert_query,[course_id,user_id])
@@ -101,15 +105,23 @@ app.post('/registercourse',authenticateToken,async(req,res) => {
 
 app.get('/course',authenticateToken,async(req,res) => {
 	const user = req.user
-	const find_query = 	"SELECT * from account WHERE name = $1"
+	const find_query = "SELECT * from account WHERE name = $1"
 	const current_user = await pool.query(find_query,[user.name])
 	const user_data = current_user.rows[0]
 	try {
 		if (user_data.teacher) {
 			const find_course_query = 
-		"SELECT course_name from account INNER JOIN course ON course.account_id=account.account_id where account.account_id = $1"
+				"SELECT course_name from account INNER JOIN course ON course.account_id=account.account_id "+ 
+					"where account.account_id = $1"
 			const courses_taught = await pool.query(find_course_query,[user_data.account_id])
 			res.json(courses_taught)
+		}
+		else {
+			const find_course_query =
+				"SELECT * FROM enrolled INNER JOIN course ON enrolled.course_id=course.course_id "+
+					"where enrolled.account_id = $1"
+			const courses_registered = await pool.query(find_course_query,[user_data.account_id])	
+			res.json(courses_registered)
 		}
 	}
 	catch {
@@ -124,6 +136,8 @@ app.delete('/course',authenticateToken,async(req,res) => {
 	const find_instructor_query = "SELECT account_id,course_id from course where course_name = $1"
 	const instructor_data = await pool.query(find_instructor_query,[course_name])
 
+	if (instructor_data.rows.length==0) res.send('Cannot find the course!')
+
 	const instructor_id = instructor_data.rows[0].account_id
 	const course_id = instructor_data.rows[0].course_id
 
@@ -134,7 +148,6 @@ app.delete('/course',authenticateToken,async(req,res) => {
 
 	if (instructor_data_ref.name != user.name || !instructor_data_ref.teacher) res.send('Cannot perform that action!')
 	try {
-		console.log('is teacher!')
 		const delete_query= "DELETE from course where course_id= $1"	
 		const delete_course = await pool.query(delete_query,[course_id])
 		res.json(delete_course)
