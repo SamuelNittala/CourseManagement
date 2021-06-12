@@ -78,25 +78,27 @@ router.post('/',authenticateToken,async (req,res) => {
  * /course:
  *  delete:
  *   description: Deletes a specified course. 
- *   parameters: name 
+ *   parameters:
+ *   - in: body
+ *     name: id 
+ *     description: Id of the course to delete. 
  *   responses:
  *    '200':
  *      description: Successfully feteched the data.
  *    '500':
  *      description: Error fetching details.
  */
-router.delete('/:name',authenticateToken,async (req,res) => {
+router.delete('/:id',authenticateToken,async (req,res) => {
 	const user = req.user
-	const {course_name} = req.params
 
-	const find_instructor_query = "SELECT account_id,course_id from course where course_name = $1"
-	const instructor_data = await pool.query(find_instructor_query,[course_name])
+	const course_id = req.params.id
+
+	const find_instructor_query = "SELECT account_id,course_id from course where course_id = $1"
+	const instructor_data = await pool.query(find_instructor_query,[course_id])
 
 	if (instructor_data.rows.length==0) res.send('Cannot find the course!')
 
 	const instructor_id = instructor_data.rows[0].account_id
-	const course_id = instructor_data.rows[0].course_id
-
 	const current_instructor_data = "SELECT * from account where account_id = $1"
 	const current_instructor= await pool.query(current_instructor_data,[instructor_id])
 

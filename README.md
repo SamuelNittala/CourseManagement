@@ -2,6 +2,7 @@
 
 Basic API written for independent instructors to manage their classes.
 
+**go to [http://localhost:4040/api-docs] to know about the end-points ** 
 # END-POINTS
 
  - /register  
