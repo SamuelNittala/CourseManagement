@@ -3,6 +3,17 @@ const router = express.Router()
 const pool = require('../db/db')
 const authenticateToken = require('../auth/authHelper')
 
+/**
+ * @swagger
+ * /course:
+ *  get:
+ *   description: Gets all the courses a student is enrolled to or a instructor is teaching.
+ *   responses:
+ *    '200':
+ *      description: Successfully feteched the data.
+ *    '500':
+ *      description: Error fetching details.
+ */
 router.get('/',authenticateToken,async (req,res) => {
 	const user = req.user
 	const find_query = "SELECT * from account WHERE name = $1"
@@ -29,13 +40,26 @@ router.get('/',authenticateToken,async (req,res) => {
 	}
 })
 
+/**
+ * @swagger
+ * /course:
+ *  post:
+ *   description: Creates a course for an instructor. 
+ *   responses:
+ *    '200':
+ *      description: Successfully created a course.
+ *    '403':
+ *      description: Student tried to create a course.
+ *    '500':
+ *      description: Error fetching details.
+ */
 router.post('/',authenticateToken,async (req,res) => {
 	if (req.body.instructor_name !== req.user.name) res.send('Invalid Operation!') 	
 
 	const find_query = "SELECT * from account where name = $1"
 	const current_user = await pool.query(find_query,[req.user.name])
 
-	if(!current_user.rows[0].teacher) res.send('Cannot add course as a student, try registering to a course!')
+	if(!current_user.rows[0].teacher) res.status(403).send('Cannot add course as a student, try registering to a course!')
 	const current_user_id = current_user.rows[0].account_id
 	try {
 		const {course_name,instructor_name} = req.body
@@ -49,9 +73,21 @@ router.post('/',authenticateToken,async (req,res) => {
 	}
 })
 
-router.delete('/',authenticateToken,async (req,res) => {
+/**
+ * @swagger
+ * /course:
+ *  delete:
+ *   description: Deletes a specified course. 
+ *   parameters: name 
+ *   responses:
+ *    '200':
+ *      description: Successfully feteched the data.
+ *    '500':
+ *      description: Error fetching details.
+ */
+router.delete('/:name',authenticateToken,async (req,res) => {
 	const user = req.user
-	const {course_name} = req.body		
+	const {course_name} = req.params
 
 	const find_instructor_query = "SELECT account_id,course_id from course where course_name = $1"
 	const instructor_data = await pool.query(find_instructor_query,[course_name])
