@@ -19,5 +19,6 @@ Basic API written for independent instructors to manage their classes.
        *to register for a course*  
  - delete/course  
        *to delete a course, only available to instructors.*
-       
+ - delete/student  
+       *to delete a student from a course*
   
