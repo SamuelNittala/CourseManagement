@@ -72,7 +72,6 @@ router.post('/',authenticateToken,async (req,res) => {
 		res.status(500).send()
 	}
 })
-
 /**
  * @swagger
  * /course:
@@ -114,5 +113,4 @@ router.delete('/:id',authenticateToken,async (req,res) => {
 		res.status(500).send()
 	}
 })
-
 module.exports = router;

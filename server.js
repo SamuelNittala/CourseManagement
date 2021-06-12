@@ -89,7 +89,41 @@ app.post('/register-course',authHelper,async(req,res) => {
 	
 	res.json(registered_query)
 })
+/**
+ * @swagger
+ * /student:
+ *  delete:
+ *   description: Removes a student from a particular course.
+ *   parameters:
+ *   - in: body
+ *     name: cid
+ *     description: Course id
+ *   - in: body
+ *     name: sid
+ *     description: Student id
+ *   responses:
+ *    '200':
+ *      description: Deletion Successful. 
+ *    '401':
+ *      description: User not found or student is not enrolled to that course.
+ *    '403':
+ *      description: current instructor does not manage the particular case
+ */
+app.delete('/student/:cid-:sid',authHelper,async(req,res) => {
+	const user = req.user
+	const student_id = req.params.sid, course_id = req.params.cid
 
+	const find_instructor = "SELECT instructor_name FROM course WHERE course_id = $1"
+	const instructor_data = await pool.query(find_instructor,[course_id])
+
+	if (instructor_data.rows.length == 0) res.status(401).send("Invalid Operation!")
+	else if (instructor_data.rows[0].instructor_name != user.name) res.status(403).send('You dont manage this course!')
+
+	const delete_query = "DELETE FROM enrolled WHERE course_id=$1 and account_id=$2"	
+	const delete_operation = await pool.query(delete_query,[course_id,student_id]) 
+
+	res.send('Deletion success')
+})
 app.listen(port, () => {
 	console.log(`Listening on port ${port}`)
 })
